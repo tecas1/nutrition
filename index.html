@@ -1,0 +1,261 @@
+<html>
+
+<head>
+
+<script type="text/javascript" src="./js/jquery-3.1.1.min.js"></script> 
+<script type="text/javascript" src="./js/labels.js"></script> 
+<script type="text/javascript" src="./js/data.js"></script> 
+
+<script>
+
+	var basket = {}
+	var nutrients = []
+	var restricted = ["FoodGroupID","FoodDescription","FoodGroupName","Volume"]
+	var default_nutrients = ["KCAL","PROT","TDF","nan"];
+
+	$(document).ready(function() {		
+	
+		var Categories = {}
+		var Category = $("#filter_category")
+		var n = $("#nutrients").find("tbody")
+		var description = ""
+		
+		$.each(foods,function(index,item) { Categories[item.FoodGroupName] = true })
+		$.each(Categories,function(key,value) { Category.append("<option>"+key+"</option>") })
+		$.each(foods[0],function(key,value) { if($.inArray(key,restricted)==-1){ nutrients.push(key) } })
+		
+		$.each(nutrients, function(key,value) {
+			if ($.inArray(value,default_nutrients)==-1){ var c = "" } else { var c = " class='sel'"; }
+			if (value in nutrient_labels) { var r = nutrient_labels[value] } else { r = {"NutrientUnit":"&nbsp;","NutrientName":"&nbsp;"} }
+			n.append("<tr><td onclick='toggle(this)'"+c+">"+value+"</td><td>"+r.NutrientName+"</td><td>"+r.NutrientUnit+"</td></tr>")
+		})
+
+		show_items()
+		
+	})
+	
+	function toggle(v){
+	
+		$(v).toggleClass("sel")
+		make_table(basket)
+	
+	}
+	
+	function adjust_basket(index,grams){
+	
+		basket[index] = parseFloat(grams)
+	
+	}
+	
+	function remove_from_basket(index){
+	
+		delete basket[index]
+	
+	}
+	
+	function make_table(basket){
+	
+		var nutrients = []
+		var t = $("#nutrition")
+		var thead = t.find("thead")
+		var tbody = t.find("tbody")
+		var tfoot = t.find("tfoot")
+		var volume_total = 0
+		var grams_total = 0
+		var totals = {}
+		var max_len = 400
+		var i = 0
+		
+		thead.empty()
+		tbody.empty()
+		tfoot.empty()
+
+		$("#nutrients").find(".sel").each(function(key,td){ nutrients.push(td.innerText) })
+
+		$.each(basket,function(index,grams) {
+			
+			var str = ""
+			var food = foods[index]
+			var scale = 0.01*basket[index]
+			var volume = scale*food.Volume/10
+			
+			var abbrev = food.FoodDescription.substr(0,max_len)
+			if(abbrev.length==max_len){ abbrev += "..." }
+			
+			str += "<td class='number'><input type='button' value='X' onclick='remove_from_basket("+index+"); make_table(basket)'/></td>"
+			str += "<td>"+food.FoodGroupName+"</td>"
+			str += "<td>"+abbrev+"</td>"
+			str += "<td><input type='text' class='grams' value='"+grams+"' onchange='adjust_basket("+index+",this.value); make_table(basket)'></td>"
+			str += "<td class='number'>"+volume.toFixed(2)+"</td>"			
+
+			grams_total += grams
+			volume_total += volume
+
+			$.each(nutrients,function(index,nutrient) {
+				if(nutrient in food) { 
+					var amount = scale*food[nutrient]
+					str += "<td class='number'>"+amount.toFixed(2)+"</td>"
+					if(nutrient in totals){ totals[nutrient] += amount } else { totals[nutrient] = amount }
+				} else { str += "<td>&nbsp</td>" }
+			})
+
+			tbody.append("<tr>"+str+"</tr>")
+			i += 1
+
+		})
+		
+		if(i>0){	
+			
+			var str1 = ""
+			var str2 = ""
+			
+			str1 += "<th>Delete</th>"
+			str1 += "<th>Category</th>"
+			str1 += "<th>Description</th>"
+			str1 += "<th>grams</th>"
+			str1 += "<th>Volume</th>"		
+			
+			str2 += "<td>&nbsp;</td>"
+			str2 += "<td>&nbsp;</td>"			
+			str2 += "<td>TOTALS</td>"
+			str2 += "<td class='number'>"+grams_total.toFixed(2)+"</td>"
+			str2 += "<td class='number'>"+volume_total.toFixed(2)+"</td>"			
+											
+			$.each(nutrients,function(index,nutrient) {
+				if(nutrient in totals) { var amount = totals[nutrient] } else { var amount = "" }
+				str1 += "<th>"+nutrient+"</th>"
+				str2 += "<td class='number'>"+amount.toFixed(2)+"</td>"
+			})
+			thead.append(str1)
+			tfoot.append("<tr>"+str2+"</tr>")
+			
+		}
+
+	}
+	
+	function add_item(index){
+	
+		if (!(index in basket)){
+			basket[index] = 100
+			make_table(basket)	
+		}
+	
+	}
+	
+	function show_items(){
+	
+		var i = 0	
+		var Category = $("#filter_category").val()
+		var Description = $("#filter_description").val().toUpperCase()
+		var tbody = $("#short_list").find("tbody")
+	
+		var query = Description.split(" ")
+	
+		tbody.empty()
+	
+		$.each(foods,function(index,item) {
+			
+			if(i>=100){ return false }
+		
+			var food_description = item.FoodDescription.toUpperCase()
+			var category = (Category == "") || (item.FoodGroupName==Category)			
+			var description = true
+			
+			$.each(query,function(index,item) {
+			
+				if((item.length>0)&&(food_description.indexOf(item)==-1)){
+				
+					description = false
+					return false
+				
+				}
+			
+			})
+			
+			if((category==true) && (description==true)){ 
+		
+					tbody.append("<tr><td>"+item.FoodGroupName+"</td><td><a href='#' onclick='add_item("+index+")'>"+item.FoodDescription+"</a><td></tr>")
+					i += 1
+			
+			}
+		
+		})
+			
+	}
+
+</script>
+
+<style>
+
+	thead { background-color: #eeeeee }
+	tfoot { background-color: #dddddd }	
+	
+	#nutrients { cursor: pointer; margin-top: 10px; }	
+	#short_list_wrap { border: 1px solid black; height: 30%; width: 80%; overflow-y: scroll; margin-top: 10px; margin-bottom: 10px; }
+	#filter_category { margin-top: 10px; }
+
+	input.grams, td.number { text-align:center }
+
+	#nutrients .sel { background-color: #888888 }
+
+</style>
+
+</head>
+
+<body>
+
+	<br />
+
+	<hr>
+
+	<h1>Search foods by category or words:</h1>
+	
+	<select id="filter_category" onchange="show_items()">
+		<option></option>
+	</select>
+
+	<input id="filter_description" type="text" onkeyup="show_items()"/>
+		
+	<div id="short_list_wrap">
+		
+		<table id="short_list">
+			<thead>
+				<th>Category</th>
+				<th>Description</th>
+			</thead>
+			<tbody></tbody>
+		</table>
+	
+	</div>
+			
+	<br />
+	
+	<hr>
+	
+	<h1>Total nutritional content:</h1>
+		
+	<p>Data pulled in fall 2017 from <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html">Canada Nutrient File</a>:</p>
+		
+	<table id="nutrition">
+		<thead></thead>
+		<tbody></tbody>
+		<tfoot></tfoot>		
+	</table>
+	
+	<br />
+	
+	<hr>
+	
+	<h1>Customize nutrient list:</h1>
+	
+	<p>Click on left-most column to add/remove a <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/nutrient-code-listing.html">nutrient</a> from calculation:</p>
+	
+	<table id="nutrients">
+		<thead><th>Nutrient</th><th>Description</th><th>Units</th></thead>
+		<tbody></tbody>
+	</table>
+
+</body>
+
+</html>
+
