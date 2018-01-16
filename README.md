@@ -10,3 +10,7 @@ move "labels.js" and "data.js" into ./js/
 
 open "index.html" in web browser
 
+see working version at tom.ae-web.ca
+
+
+
